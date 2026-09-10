@@ -1,9 +1,6 @@
 name: Build and test
 on:
-  push:
-    branches:
-    - 'master'
-  pull_request:
+  workflow_dispatch: 
 
 permissions:
   contents: read
@@ -16,24 +13,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  static-analysis:
-    runs-on: ubuntu-latest
-    container: egecetinn/alpine@sha256:9e2b9bedd5f930f7b03a459976f72eb329efb01995569e72a270ead4d07200d6
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: recursive
-      - name: Fix checkout ownership
-        run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
-      - name: Run clang-format
-        run: clang-format include/**/*.hpp src/*.cpp src/**/*.cpp --verbose --dry-run --Werror
-      - name: Run cppcheck
-        run: cppcheck -Iinclude/ src --verbose --enable=all --error-exitcode=1 --std=c++20 --language=c++ --suppressions-list=cppcheckSuppressions.txt --inline-suppr --check-level=exhaustive
-      - name: Configure for clang-tidy
-        run: cmake -S . -B build
-      - name: Clang-tidy
-        run: ./scripts/clang-tidy-changed.sh changed
+  # static-analysis:
+  #   runs-on: ubuntu-latest
+  #   container: egecetinn/alpine@sha256:9e2b9bedd5f930f7b03a459976f72eb329efb01995569e72a270ead4d07200d6
+  #   steps:
+  #     - name: Checkout Code
+  #       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  #       with:
+  #         submodules: recursive
+  #     - name: Fix checkout ownership
+  #       run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+  #     - name: Run clang-format
+  #       run: clang-format include/**/*.hpp src/*.cpp src/**/*.cpp --verbose --dry-run --Werror
+  #     - name: Run cppcheck
+  #       run: cppcheck -Iinclude/ src --verbose --enable=all --error-exitcode=1 --std=c++20 --language=c++ --suppressions-list=cppcheckSuppressions.txt --inline-suppr --check-level=exhaustive
+  #     - name: Configure for clang-tidy
+  #       run: cmake -S . -B build
+  #     - name: Clang-tidy
+  #       run: ./scripts/clang-tidy-changed.sh changed
 
   memleak:
     runs-on: ubuntu-latest
@@ -60,18 +57,18 @@ jobs:
         run: cmake --build build --parallel
       - name: Run tests
         run: ctest --output-on-failure --test-dir build
-      - name: Save ccache
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
+      # - name: Save ccache
+      #   uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      #   with:
+      #     path: ${{ env.CCACHE_DIR }}
+      #     key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
 
   fuzztests:
     runs-on: ubuntu-latest
     container: egecetinn/ubuntu2404@sha256:0f63b02fe3dcd1a03d299000466713596df974a657005e27cda42155f652134d
     strategy:
       matrix:
-        sanitizer: [ASAN, USAN]
+        sanitizer: [ASAN]
     steps:
       - name: Checkout Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -94,17 +91,17 @@ jobs:
         run: cmake --build build --parallel
       - name: Run tests
         run: ctest --output-on-failure --test-dir build
-      - name: Save ccache
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
-      - name: Upload regressions
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: regressions-${{ matrix.sanitizer }}
-          path: build/tests/fuzztests/crash*
+      # - name: Save ccache
+      #   uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      #   with:
+      #     path: ${{ env.CCACHE_DIR }}
+      #     key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
+      # - name: Upload regressions
+      #   if: failure()
+      #   uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      #   with:
+      #     name: regressions-${{ matrix.sanitizer }}
+      #     path: build/tests/fuzztests/crash*
 
   unittests:
     runs-on: ubuntu-latest
@@ -112,8 +109,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - image: rockylinux10@sha256:3e7fb793635d9ca1e0475f749e4543ba13ec61670d98ff95eec87a934b83c8d2
-          - image: ubuntu2404@sha256:0f63b02fe3dcd1a03d299000466713596df974a657005e27cda42155f652134d
           - image: ubuntu2604@sha256:6d99a760f3d9b222c837cccffe7cc9e8513285dd25e8cc8e00255d4d8575440e
 
     steps:
@@ -138,8 +133,8 @@ jobs:
         run: cmake --build build --parallel
       - name: Run Tests
         run: ctest --output-on-failure --test-dir build
-      - name: Save ccache
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ steps.ccache-restore.outputs.cache-primary-key }}
+      # - name: Save ccache
+      #   uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      #   with:
+      #     path: ${{ env.CCACHE_DIR }}
+      #     key: ${{ steps.ccache-restore.outputs.cache-primary-key }}

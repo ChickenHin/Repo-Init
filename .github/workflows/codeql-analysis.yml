@@ -1,11 +1,11 @@
 name: "CodeQL"
 
 on:
-  schedule:
-    - cron: '21 9 * * 4'
-  push:
-    branches:
-      - 'master'
+  # schedule:
+  #   - cron: '21 9 * * 4'
+  # push:
+  #   branches:
+  #     - 'master'
   pull_request:
 
 permissions:
